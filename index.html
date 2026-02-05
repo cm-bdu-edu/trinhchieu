@@ -48,53 +48,13 @@
             image-rendering: -webkit-optimize-contrast;
         }
         
+        /* Ẩn các nút điều khiển */
         .nav-button {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: none;
-            padding: 20px;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 10;
-            transition: background-color 0.3s ease;
-        }
-        
-        .nav-button:hover {
-            background: rgba(0, 0, 0, 0.8);
-        }
-        
-        .nav-button.prev {
-            left: 20px;
-        }
-        
-        .nav-button.next {
-            right: 20px;
+            display: none;
         }
         
         .slide-indicator {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 10;
-        }
-        
-        .indicator-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.5);
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        
-        .indicator-dot.active {
-            background: white;
+            display: none;
         }
     </style>
 </head>
@@ -115,9 +75,6 @@
                 <source src="1.mp4" type="video/mp4">
                 Trình duyệt của bạn không hỗ trợ video.
             </video>
-                <source src="1.mp4" type="video/mp4">
-                Trình duyệt của bạn không hỗ trợ video.
-            </video>
         </div>
         
         <!-- Video Slide 2 -->
@@ -135,9 +92,6 @@
                 <source src="2.mp4" type="video/mp4">
                 Trình duyệt của bạn không hỗ trợ video.
             </video>
-                <source src="2.mp4" type="video/mp4">
-                Trình duyệt của bạn không hỗ trợ video.
-            </video>
         </div>
         
         <!-- Video Slide 3 -->
@@ -146,7 +100,7 @@
                 id="video3" 
                 muted 
                 loop 
-                preload="auto"
+                preload="metadata"
                 playsinline
                 webkit-playsinline
                 onloadeddata="handleVideoLoaded(this)"
@@ -155,24 +109,6 @@
                 <source src="3.mp4" type="video/mp4">
                 Trình duyệt của bạn không hỗ trợ video.
             </video>
-                <source src="3.mp4" type="video/mp4">
-                Trình duyệt của bạn không hỗ trợ video.
-            </video>
-        </div>
-        
-        <!-- Navigation Buttons -->
-        <button class="nav-button prev" onclick="previousSlide()">
-            &#8249;
-        </button>
-        <button class="nav-button next" onclick="nextSlide()">
-            &#8250;
-        </button>
-        
-        <!-- Slide Indicators -->
-        <div class="slide-indicator">
-            <div class="indicator-dot active" onclick="goToSlide(0)"></div>
-            <div class="indicator-dot" onclick="goToSlide(1)"></div>
-            <div class="indicator-dot" onclick="goToSlide(2)"></div>
         </div>
     </div>
 
@@ -213,38 +149,50 @@
         function initSlideshow() {
             console.log('Khởi tạo slideshow với video loop tối ưu');
             
-            // Preload tất cả video
+            // Preload tất cả video ngay lập tức
             const videos = document.querySelectorAll('video');
-            videos.forEach(video => {
-                // Đảm bảo video được load hoàn toàn
+            videos.forEach((video, index) => {
+                // Load video ngay
                 video.load();
                 
-                // Tối ưu cho loop mượt mà
-                video.addEventListener('loadedmetadata', function() {
-                    // Đặt video về frame đầu tiên
+                // Đặt poster frame để tránh màn hình đen
+                video.addEventListener('loadeddata', function() {
                     this.currentTime = 0;
                 });
+                
+                // Preload video thứ 3 đặc biệt
+                if (index === 2) { // Video thứ 3
+                    video.preload = 'auto';
+                    video.addEventListener('loadstart', function() {
+                        console.log('Video 3 bắt đầu load...');
+                    });
+                    video.addEventListener('loadedmetadata', function() {
+                        console.log('Video 3 metadata loaded');
+                        this.currentTime = 0;
+                    });
+                    video.addEventListener('canplay', function() {
+                        console.log('Video 3 sẵn sàng phát');
+                    });
+                }
             });
             
             // Bắt đầu phát video đầu tiên
             const firstVideo = document.getElementById('video1');
             if (firstVideo) {
-                // Đảm bảo video sẵn sàng trước khi phát
                 const playFirstVideo = () => {
                     firstVideo.currentTime = 0;
                     firstVideo.play().catch(e => {
                         console.log('Không thể tự động phát video:', e);
-                        // Thêm sự kiện click để phát video nếu autoplay bị chặn
                         document.addEventListener('click', function() {
                             firstVideo.play();
                         }, { once: true });
                     });
                 };
                 
-                if (firstVideo.readyState >= 3) {
+                if (firstVideo.readyState >= 2) {
                     playFirstVideo();
                 } else {
-                    firstVideo.addEventListener('canplaythrough', playFirstVideo, { once: true });
+                    firstVideo.addEventListener('loadeddata', playFirstVideo, { once: true });
                 }
             }
         }
@@ -334,7 +282,9 @@
         function goToSlide(slideIndex) {
             if (slideIndex === currentSlide) return;
             
-            // Dừng video hiện tại (nếu có)
+            console.log(`Chuyển từ slide ${currentSlide} sang slide ${slideIndex}`);
+            
+            // Dừng video hiện tại
             const currentVideo = document.querySelector(`.video-slide[data-slide="${currentSlide}"] video`);
             if (currentVideo) {
                 currentVideo.pause();
@@ -342,46 +292,58 @@
             
             // Ẩn slide hiện tại
             const currentSlideElement = document.querySelector(`.video-slide[data-slide="${currentSlide}"]`);
-            const currentIndicator = document.querySelectorAll('.indicator-dot')[currentSlide];
-            
             currentSlideElement.classList.remove('active');
-            currentIndicator.classList.remove('active');
             
             // Hiển thị slide mới
             const newSlideElement = document.querySelector(`.video-slide[data-slide="${slideIndex}"]`);
-            const newIndicator = document.querySelectorAll('.indicator-dot')[slideIndex];
-            
-            newSlideElement.classList.add('active');
-            newIndicator.classList.add('active');
-            
-            // Phát video mới với loop tối ưu
             const newVideo = document.querySelector(`.video-slide[data-slide="${slideIndex}"] video`);
+            
+            // Hiển thị slide ngay lập tức để tránh màn hình đen
+            newSlideElement.classList.add('active');
+            
             if (newVideo) {
-                // Reset video về đầu để loop mượt mà
+                // Đặt video về đầu
                 newVideo.currentTime = 0;
                 
-                // Đảm bảo video sẵn sàng trước khi phát
-                const playNewVideo = () => {
+                // Phát video ngay nếu đã sẵn sàng
+                if (newVideo.readyState >= 2) {
+                    console.log(`Video ${slideIndex + 1} sẵn sàng, phát ngay`);
                     newVideo.play().catch(e => {
-                        console.log('Không thể phát video:', e);
+                        console.log('Lỗi phát video:', e);
                     });
-                };
-                
-                if (newVideo.readyState >= 3) {
-                    playNewVideo();
                 } else {
-                    newVideo.addEventListener('canplaythrough', playNewVideo, { once: true });
-                    // Preload nếu chưa sẵn sàng
+                    console.log(`Video ${slideIndex + 1} chưa sẵn sàng, đang load...`);
+                    
+                    // Force load video
                     newVideo.load();
+                    
+                    // Phát khi sẵn sàng
+                    const playWhenReady = () => {
+                        newVideo.currentTime = 0;
+                        newVideo.play().catch(e => {
+                            console.log('Lỗi phát video:', e);
+                        });
+                    };
+                    
+                    // Thử nhiều event để đảm bảo video phát
+                    newVideo.addEventListener('loadeddata', playWhenReady, { once: true });
+                    newVideo.addEventListener('canplay', playWhenReady, { once: true });
+                    
+                    // Timeout backup
+                    setTimeout(() => {
+                        if (newVideo.paused && newVideo.readyState >= 2) {
+                            playWhenReady();
+                        }
+                    }, 500);
                 }
             }
             
             currentSlide = slideIndex;
             
-            // Preload video tiếp theo để chuyển mượt mà
+            // Preload video tiếp theo
             const nextIndex = (slideIndex + 1) % totalSlides;
             const nextVideo = document.querySelector(`.video-slide[data-slide="${nextIndex}"] video`);
-            if (nextVideo && nextVideo.readyState < 3) {
+            if (nextVideo && nextVideo.readyState < 2) {
                 nextVideo.load();
             }
         }
